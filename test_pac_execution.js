@@ -44,6 +44,9 @@ function dnsResolve(host) {
     if (host === 'localhost') return '127.0.0.1';
     if (host === 'baidu.com') return '39.156.66.10';
     if (host === 'google.com.hk') return '142.251.43.199';
+    // TLD heuristic test: force Chinese IP for foreign-TLD domain
+    // If DNS is called, CIDR match → DIRECT; but TLD heuristic should skip DNS → PROXY
+    if (host === 'some-random-foreign-site.com') return '39.156.66.10'; // Chinese IP
     return undefined;
 }
 
@@ -130,12 +133,31 @@ const testCases = [
     { url: 'gov.cn', expectedResult: 'DIRECT', description: '政府网站（直连）' },
     { url: 'qq.com', expectedResult: 'DIRECT', description: '腾讯（直连）' },
     
+    // 直连域名 — 子域名哈希匹配
+    { url: 'cdn.baidu.com', expectedResult: 'DIRECT', description: '百度CDN子域名（直连）' },
+    { url: 'www.gov.cn', expectedResult: 'DIRECT', description: '政府网站子域名（直连）' },
+    { url: 'api.weixinbridge.com', expectedResult: 'DIRECT', description: '微信子域名（直连）' },
+    
     // 代理域名
     { url: 'google.com.hk', expectedResult: 'PROXY', description: 'Google（代理）' },
     { url: 'youtube.com', expectedResult: 'PROXY', description: 'YouTube（代理）' },
     { url: 'github.com', expectedResult: 'PROXY', description: 'GitHub（代理）' },
     { url: 'twitter.com', expectedResult: 'PROXY', description: 'Twitter（代理）' },
     { url: 'wikipedia.org', expectedResult: 'PROXY', description: 'Wikipedia（代理）' },
+    
+    // 代理域名 — 子域名哈希匹配
+    { url: 'api.github.com', expectedResult: 'PROXY', description: 'GitHub API子域名（代理）' },
+    { url: 'raw.githubusercontent.com', expectedResult: 'PROXY', description: 'GitHub CDN子域名（代理）' },
+    { url: 'www.youtube.com', expectedResult: 'PROXY', description: 'YouTube子域名（代理）' },
+    
+    // TLD启发式 — 未知.com域名跳过DNS直走代理（foreign TLD白名单）
+    // dnsResolve mock 返回中国IP 39.156.66.10，若DNS被调用将返回DIRECT，返回PROXY证明TLD启发式生效
+    { url: 'some-random-foreign-site.com', expectedResult: 'PROXY', description: '未知.com→TLD启发式跳过DNS→代理（验证DNS未调用）' },
+    { url: 'another-site.org', expectedResult: 'PROXY', description: '未知.org→TLD启发式→代理' },
+    { url: 'test-app.io', expectedResult: 'PROXY', description: '未知.io→TLD启发式→代理' },
+    
+    // TLD启发式 — 非foreign TLD保持DNS+CIDR保守策略
+    { url: 'unknown-site.cn', expectedResult: 'auto-detect', description: '未知.cn→DNS+CIDR保守策略' },
     
     // 本地 TLD
     { url: 'example.localhost', expectedResult: 'DIRECT', description: 'localhost 本地域（直连）' },
