@@ -9,7 +9,7 @@ var domainsUsingProxy = ["google.com.hk","ent.com","youtube.com","googlevideo.co
 var proxyDomainHash = {};
 
 // Foreign TLDs overwhelmingly non-Chinese — skip DNS for these
-var foreignTLDs = {'.com':1,'.org':1,'.net':1,'.io':1,'.dev':1,'.app':1,'.co':1,'.ai':1,'.tv':1,'.me':1,'.info':1,'.biz':1};
+var foreignTLDs = {'.com':1,'.org':1,'.net':1,'.io':1,'.dev':1,'.app':1,'.co':1,'.ai':1,'.tv':1,'.me':1,'.info':1,'.biz':1,'.edu':1,'.gov':1,'.uk':1,'.de':1,'.jp':1,'.kr':1,'.fr':1,'.ru':1};
 
 var localTlds = [".test",".localhost"];
 
@@ -46,6 +46,7 @@ RadixTree.prototype.insert = function(string) {
 };
 
 RadixTree.prototype.search = function(string) {
+    if (!string || string.length === 0) return false;
     var currentNode = this.root;
     var isLastNode = false;
     for (var i=0; i < string.length; i++) {
@@ -130,6 +131,11 @@ function isPrivateIp(ip) {
 }
 
 function FindProxyForURL(url, host) {
+    // Guard: empty/null host — defensive programming for edge cases
+    if (!host || host.length === 0) {
+        return direct;
+    }
+
     // FAST PATH 1: IP address host — skip domain matching, go straight to CIDR
     if (isIpAddress(host)) {
         if (isPrivateIp(host)) {
