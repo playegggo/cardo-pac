@@ -1,4 +1,4 @@
-var proxy = "PROXY 127.0.0.1:%mixed-port%; SOCKS5 127.0.0.1:%mixed-port%; DIRECT;";
+var proxy = "SOCKS5 127.0.0.1:%mixed-port%; PROXY 127.0.0.1:%mixed-port%; DIRECT;";
 
 var direct = 'DIRECT';
 
@@ -117,6 +117,14 @@ function isLocalTestDomain(domain) {
     });
 }
 
+// Known GFW DNS pollution IPs — dnsResolve may return these for blocked domains.
+// They fall within Chinese CIDR ranges but do NOT host the requested service.
+var dnsPollutionHash = {};
+
+function isDnsPollutionIp(ip) {
+    return hop.call(dnsPollutionHash, ip);
+}
+
 /* https://github.com/frenchbread/private-ip */
 function isPrivateIp(ip) {
     return /^(::f{4}:)?10\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$/i.test(ip) ||
@@ -176,6 +184,11 @@ function FindProxyForURL(url, host) {
     if (isPrivateIp(ip)) {
         return direct;
     }
+    // DNS pollution guard: GFW returns fake Chinese IPs for blocked domains.
+    // Override CIDR match — force PROXY when IP is a known pollution address.
+    if (isDnsPollutionIp(ip)) {
+        return proxy;
+    }
     if (radixTree.search(ipToBinary(ip))) {
         return direct;
     }
@@ -193,6 +206,12 @@ var radixTree = new RadixTree();
     }
     for (i = 0; i < domainsUsingProxy.length; i++) {
         proxyDomainHash[domainsUsingProxy[i]] = true;
+    }
+
+    // Build DNS pollution IP hash
+    var pollutionIPs = ['59.24.3.173','203.98.7.65','243.185.187.39','8.7.198.45','37.61.54.158'];
+    for (i = 0; i < pollutionIPs.length; i++) {
+        dnsPollutionHash[pollutionIPs[i]] = true;
     }
 
     // Build CIDR Radix Tree
