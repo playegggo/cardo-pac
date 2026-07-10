@@ -1,4 +1,4 @@
-var proxy = "SOCKS5 127.0.0.1:%mixed-port%; PROXY 127.0.0.1:%mixed-port%; DIRECT;";
+var proxy = "SOCKS5 127.0.0.1:10808; PROXY 127.0.0.1:10808; DIRECT;";
 
 var direct = 'DIRECT';
 
